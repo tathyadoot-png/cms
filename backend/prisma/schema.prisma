@@ -8,9 +8,11 @@ datasource db {
 }
 
 model Organization {
-  id        String   @id @default(uuid())
-  shortCode Int      @unique @default(autoincrement())
+  id        String @id @default(uuid())
+  shortCode Int    @unique
   name      String
+
+  isDeleted Boolean @default(false)
 
   users User[]
   roles Role[]
@@ -20,25 +22,33 @@ model Organization {
 }
 
 model User {
-  id             String       @id @default(uuid())
-  email          String       @unique
+  id             String    @id @default(uuid())
+  email          String
   password       String
-  isActive       Boolean      @default(true)
-  failedAttempts Int          @default(0)
+  isActive       Boolean   @default(true)
+  failedAttempts Int       @default(0)
   lockUntil      DateTime?
+  lastLoginAt    DateTime?
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   roles         UserRole[]
   refreshTokens RefreshToken[]
 
+  assignedTasks Task[]     @relation("AssignedTo")
+  createdTasks  Task[]     @relation("AssignedBy")
+  auditLogs     AuditLog[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([email, organizationId])
 }
 
 model Role {
   id             String       @id @default(uuid())
-  name           String       @unique
+  name           String
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
@@ -46,6 +56,8 @@ model Role {
   users       UserRole[]
 
   createdAt DateTime @default(now())
+
+  @@unique([name, organizationId])
 }
 
 model Permission {
@@ -81,5 +93,38 @@ model RefreshToken {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   expiresAt DateTime
+  isRevoked Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id          String  @id @default(uuid())
+  action      String
+  entity      String
+  entityId    String
+  description String?
+
+  performedById String
+  performedBy   User   @relation(fields: [performedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Task {
+  id            String    @id @default(uuid())
+  title         String
+  description   String?
+  status        String
+  priority      String
+  dueDate       DateTime?
+  revisionCount Int       @default(0)
+
+  assignedToId String
+  assignedTo   User   @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  assignedById String
+  assignedBy   User   @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
