@@ -7,303 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-////////////////////////
-/// ENUMS
-////////////////////////
-
-enum UserRole {
-  SUPER_ADMIN
-  ADMIN
-  MANAGER
-  EDITOR
-  WRITER
-  REVIEWER
-  CLIENT
-}
-
-enum TaskStatus {
-  CREATED
-  ASSIGNED
-  IN_PROGRESS
-  IN_REVIEW
-  CHANGES_REQUESTED
-  APPROVED
-  PUBLISHED
-  COMPLETED
-  CANCELLED
-}
-
-enum ContentStatus {
-  DRAFT
-  IN_REVIEW
-  APPROVED
-  PUBLISHED
-  ARCHIVED
-}
-
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-////////////////////////
-/// ORGANIZATION
-////////////////////////
-
 model Organization {
-  id       String  @id @default(uuid())
-  name     String
-  slug     String  @unique
-  isActive Boolean @default(true)
+  id        String   @id @default(uuid())
+  shortCode Int      @unique @default(autoincrement())
+  name      String
 
-  users    User[]
-  clients  Client[]
-  projects Project[]
+  users User[]
+  roles Role[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@index([slug])
 }
-
-////////////////////////
-/// USER
-////////////////////////
 
 model User {
-  id             String @id @default(uuid())
+  id             String       @id @default(uuid())
+  email          String       @unique
+  password       String
+  isActive       Boolean      @default(true)
+  failedAttempts Int          @default(0)
+  lockUntil      DateTime?
   organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
 
-  name     String
-  email    String
-  password String
-  role     UserRole
-  isActive Boolean  @default(true)
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  tasksAssigned Task[] @relation("TaskOwner")
-  tasksReviewed Task[] @relation("TaskReviewer")
-
-  contents  Content[]
-  comments  Comment[]
-  auditLogs AuditLog[]
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@unique([email, organizationId])
-  @@index([organizationId])
 }
 
-////////////////////////
-/// CLIENT
-////////////////////////
-
-model Client {
-  id             String @id @default(uuid())
+model Role {
+  id             String       @id @default(uuid())
+  name           String       @unique
   organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
 
-  name         String
-  contactEmail String?
-  isActive     Boolean @default(true)
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  projects     Project[]
+  permissions RolePermission[]
+  users       UserRole[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([organizationId])
 }
 
-////////////////////////
-/// PROJECT
-////////////////////////
-
-model Project {
-  id          String  @id @default(uuid())
-  clientId    String
-  name        String
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
   description String?
-
-  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  tasks    Task[]
-  contents Content[]
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  organizationId String?
-
-  @@index([clientId])
+  roles       RolePermission[]
 }
 
-////////////////////////
-/// TASK
-////////////////////////
+model RolePermission {
+  roleId       String
+  permissionId String
 
-model Task {
-  id          String     @id @default(uuid())
-  projectId   String
-  title       String
-  description String?
-  status      TaskStatus @default(CREATED)
-  priority    Priority   @default(MEDIUM)
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
 
-  ownerId    String?
-  reviewerId String?
+  @@id([roleId, permissionId])
+}
 
-  dueDate     DateTime
-  startedAt   DateTime?
-  completedAt DateTime?
+model UserRole {
+  userId String
+  roleId String
 
-  expectedHours Int?
-  actualHours   Int?
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
 
-  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  owner    User?   @relation("TaskOwner", fields: [ownerId], references: [id])
-  reviewer User?   @relation("TaskReviewer", fields: [reviewerId], references: [id])
+  @@id([userId, roleId])
+}
 
-  contents      Content[]
-  comments      Comment[]
-  statusHistory TaskStatusHistory[]
-  auditLogs     AuditLog[]
-
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-  @@index([ownerId])
-  @@index([reviewerId])
-}
-
-////////////////////////
-/// TASK STATUS HISTORY
-////////////////////////
-
-model TaskStatusHistory {
-  id        String     @id @default(uuid())
-  taskId    String
-  from      TaskStatus
-  to        TaskStatus
-  changedBy String
-
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  changedAt DateTime @default(now())
-
-  @@index([taskId])
-}
-
-////////////////////////
-/// CONTENT
-////////////////////////
-
-model Content {
-  id        String  @id @default(uuid())
-  projectId String
-  taskId    String?
-  authorId  String
-
-  title   String
-  body    String
-  status  ContentStatus @default(DRAFT)
-  version Int           @default(1)
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  task    Task?   @relation(fields: [taskId], references: [id])
-  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  versions  ContentVersion[]
-  comments  Comment[]
-  assets    Asset[]
-  auditLogs AuditLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-  @@index([taskId])
-  @@index([authorId])
-}
-
-////////////////////////
-/// CONTENT VERSION
-////////////////////////
-
-model ContentVersion {
-  id        String @id @default(uuid())
-  contentId String
-  title     String
-  body      String
-  version   Int
-
-  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([contentId])
-}
-
-////////////////////////
-/// ASSET
-////////////////////////
-
-model Asset {
-  id        String  @id @default(uuid())
-  contentId String?
-  url       String
-  type      String
-  provider  String
-
-  content Content? @relation(fields: [contentId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-}
-
-////////////////////////
-/// COMMENT
-////////////////////////
-
-model Comment {
-  id        String  @id @default(uuid())
-  taskId    String?
-  contentId String?
-  authorId  String
-  message   String
-
-  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  content Content? @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  author  User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([taskId])
-  @@index([contentId])
-}
-
-////////////////////////
-/// AUDIT LOG
-////////////////////////
-
-model AuditLog {
-  id       String @id @default(uuid())
-  userId   String
-  entity   String
-  entityId String
-  action   String
-  meta     Json?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  task      Task?    @relation(fields: [taskId], references: [id])
-  taskId    String?
-  content   Content? @relation(fields: [contentId], references: [id])
-  contentId String?
-
-  @@index([entity, entityId])
 }
