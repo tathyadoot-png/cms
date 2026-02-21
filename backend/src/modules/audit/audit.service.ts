@@ -16,4 +16,22 @@ export class AuditService {
       data,
     })
   }
+
+
+  async getTaskLogs(taskId: string) {
+  return this.prisma.auditLog.findMany({
+    where: { entityId: taskId },
+    include: {
+      performedBy: {
+        select: {
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  })
+}
+
 }

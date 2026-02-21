@@ -1,4 +1,5 @@
 import axios from "axios";
+import { handleApiError } from './errorHandler'
 
 export const api = axios.create({
   baseURL: "http://localhost:4000",
@@ -36,3 +37,16 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+
+
+
+
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    handleApiError(error)
+    return Promise.reject(error)
+  },
+)

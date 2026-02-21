@@ -33,9 +33,7 @@ async function bootstrap() {
     }),
   )
 
-  // 🛡 Global Roles Guard
-  const reflector = app.get(Reflector)
-  app.useGlobalGuards(new RolesGuard(reflector))
+
 
   await app.listen(4000)
 

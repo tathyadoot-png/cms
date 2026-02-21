@@ -12,6 +12,8 @@ export default function Sidebar() {
     { name: "Users", href: "/dashboard/users" },
     { name: "Posts", href: "/dashboard/posts" },
     { name: "Roles", href: "/dashboard/roles" },
+    { name: "Tasks", href: "/dashboard/tasks" },
+    { name: "Assign Task", href: "/dashboard/tasks/assign" },
     { name: "Organizations", href: "/dashboard/organizations" },
     { name: "Settings", href: "/dashboard/settings" },
   ];

@@ -29,7 +29,7 @@ model User {
   failedAttempts Int       @default(0)
   lockUntil      DateTime?
   lastLoginAt    DateTime?
-
+comments TaskComment[]
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
@@ -114,11 +114,11 @@ model Task {
   id            String    @id @default(uuid())
   title         String
   description   String?
-  status        String
-  priority      String
+  status        TaskStatus   @default(PENDING)
+  priority      TaskPriority @default(MEDIUM)
   dueDate       DateTime?
   revisionCount Int       @default(0)
-
+comments TaskComment[]
   assignedToId String
   assignedTo   User   @relation("AssignedTo", fields: [assignedToId], references: [id])
 
@@ -127,4 +127,30 @@ model Task {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  REVISION_REQUESTED
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  content   String
+
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
 }
