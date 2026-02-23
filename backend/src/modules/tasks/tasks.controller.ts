@@ -48,4 +48,16 @@ findAll(@Req() req: any) {
   getMyDashboard(@Req() req: any) {
     return this.tasksService.getMyDashboard(req.user.sub)
   }
+
+  @Get('admin-dashboard')
+getAdminDashboard(@Req() req: any) {
+  if (
+    !req.user.roles.includes('SUPER_ADMIN') &&
+    !req.user.roles.includes('ADMIN')
+  ) {
+    throw new Error('Access denied')
+  }
+
+  return this.tasksService.getAdminDashboardDetailed()
+}
 }

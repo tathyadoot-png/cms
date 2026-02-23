@@ -1,42 +1,43 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from 'react'
+import { api } from '@/lib/api'
+import AdminDashboard from './components/AdminDashboard'
+import UserDashboard from './components/UserDashboard'
+import DashboardSkeleton from './components/DashboardSkeleton'
+import { toast } from 'sonner'
 
-export default function Dashboard() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+export default function DashboardPage() {
+  const [role, setRole] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get("/auth/me")
-      .then((res) => {
-        setUser(res.data);
-      })
-      .catch(() => {
-        router.push("/login");
-      });
-  }, []);
+    const init = async () => {
+      try {
+        const res = await api.get('/auth/me')
+        const roles = res.data.roles
 
-  if (!user) return <p>Loading...</p>;
+        if (
+          roles.includes('SUPER_ADMIN') ||
+          roles.includes('ADMIN')
+        ) {
+          setRole('ADMIN')
+        } else {
+          setRole('USER')
+        }
+      } catch (err: any) {
+        toast.error('Failed to load user')
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">
-        Welcome {user.email}
-      </h1>
-      <p>Roles: {user.roles?.join(", ")}</p>
+    init()
+  }, [])
 
-      <button
-  onClick={async () => {
-    await api.post("/auth/logout");
-    window.location.href = "/login";
-  }}
-  className="bg-red-500 text-white px-4 py-2 mt-4"
->
-  Logout
-</button>
+  if (loading) return <DashboardSkeleton />
 
-    </div>
-  );
+  if (role === 'ADMIN') return <AdminDashboard />
+
+  return <UserDashboard />
 }

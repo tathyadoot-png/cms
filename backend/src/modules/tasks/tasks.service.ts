@@ -213,4 +213,119 @@ export class TasksService {
       revisionRate,
     }
   }
+
+
+  async getAdminDashboard() {
+  const tasks = await this.prisma.task.findMany()
+
+  const total = tasks.length
+
+  const completed = tasks.filter(t => t.status === 'COMPLETED').length
+  const inProgress = tasks.filter(t => t.status === 'IN_PROGRESS').length
+  const pending = tasks.filter(t => t.status === 'PENDING').length
+  const revisionRequested = tasks.filter(t => t.status === 'REVISION_REQUESTED').length
+
+  const overdue = tasks.filter(
+    t =>
+      t.dueDate &&
+      new Date(t.dueDate) < new Date() &&
+      t.status !== 'COMPLETED'
+  ).length
+
+  const completionRate = total ? Math.round((completed / total) * 100) : 0
+  const revisionRate = total ? Math.round((revisionRequested / total) * 100) : 0
+
+  return {
+    totalTasks: total,
+    completed,
+    inProgress,
+    pending,
+    revisionRequested,
+    overdue,
+    completionRate,
+    revisionRate,
+  }
+}
+
+
+
+async getAdminDashboardDetailed() {
+  const tasks = await this.prisma.task.findMany({
+    include: {
+      assignedTo: true,
+    },
+  })
+
+  const total = tasks.length
+
+  const completed = tasks.filter(t => t.status === 'COMPLETED').length
+  const inProgress = tasks.filter(t => t.status === 'IN_PROGRESS').length
+  const pending = tasks.filter(t => t.status === 'PENDING').length
+  const revisionRequested = tasks.filter(t => t.status === 'REVISION_REQUESTED').length
+const submitted = tasks.filter(t => t.status === 'SUBMITTED').length
+  const overdue = tasks.filter(
+    t =>
+      t.dueDate &&
+      new Date(t.dueDate) < new Date() &&
+      t.status !== 'COMPLETED'
+  ).length
+
+  const completionRate = total ? Math.round((completed / total) * 100) : 0
+  const revisionRate = total ? Math.round((revisionRequested / total) * 100) : 0
+
+  // 👇 USER-WISE PERFORMANCE
+  const userStats: any = {}
+
+  tasks.forEach(task => {
+    const user = task.assignedTo?.email
+    if (!user) return
+
+    if (!userStats[user]) {
+      userStats[user] = {
+        email: user,
+        total: 0,
+        completed: 0,
+        revisions: 0,
+        overdue: 0,
+      }
+    }
+
+    userStats[user].total++
+
+    if (task.status === 'COMPLETED')
+      userStats[user].completed++
+
+    if (task.status === 'REVISION_REQUESTED')
+      userStats[user].revisions++
+
+    if (
+      task.dueDate &&
+      new Date(task.dueDate) < new Date() &&
+      task.status !== 'COMPLETED'
+    )
+      userStats[user].overdue++
+  })
+
+  const writersPerformance = Object.values(userStats).map(
+    (user: any) => ({
+      ...user,
+      completionRate: user.total
+        ? Math.round((user.completed / user.total) * 100)
+        : 0,
+    }),
+  )
+
+return {
+  totalTasks: total,
+  completed,
+  inProgress,
+  pending,
+  submitted,
+  revisionRequested,
+  overdue,
+  completionRate,
+  revisionRate,
+  writersPerformance,
+}
+}
 }
